@@ -1,0 +1,344 @@
+<head>
+  <link
+    href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css"
+    rel="stylesheet"
+  />
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.6.1/web3.min.js"
+    integrity="sha512-5erpERW8MxcHDF7Xea9eBQPiRtxbse70pFcaHJuOhdEBQeAxGQjUwgJbuBDWve+xP/u5IoJbKjyJk50qCnMD7A=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  ></script>
+</head>
+
+<body class="h-full">
+  <div
+    class="
+      flex
+      w-full
+      h-full
+      justify-center
+      content-center
+      items-center
+      space-x-4
+    "
+  >
+    <div class="flex flex-col space-y-6">
+      <h3 class="text-center">Working with Web3.js!</h3>
+      <div class="flex flex-col space-y-2">
+        <button
+          onclick="loginWithEth()"
+          class="
+            rounded
+            bg-white
+            border border-gray-400
+            hover:bg-gray-100
+            py-2
+            px-4
+            text-gray-600
+            hover:text-gray-700
+          "
+        >
+
+        
+          Login & Save ETH Address
+        </button>
+        <p id="userAddress" class="text-gray-600"></p>
+        <button
+          id="logoutButton"
+          onclick="logout()"
+          class="hidden text-blue-500 underline"
+        >
+          Logout
+        </button>
+      </div>
+      <button
+        id="getContractInfo"
+        onclick="getContractSymbol()"
+        class="rounded bg-blue-500 hover:bg-blue-700 py-2 px-4 text-white"
+      >
+        Get Contract Data
+      </button>
+
+      <p id="nameline" class="text-gray-600"></p>
+      <p id="balanceline" class="text-gray-600"></p>
+      <p id="totalsupplyline" class="text-gray-600"></p>
+      
+      
+      
+      <div id="nfts" class="flex gap-7 flex-wrap"></div>
+
+
+      <p
+        id="userInputTitle" class="text-gray-600">
+        Enter Token ID:
+      </p>
+
+      <input id="userInput" type="text" placeholder="Token ID">
+      
+      <button
+        id="getPhase"
+        onclick="returnText()"
+
+        class="rounded bg-blue-500 hover:bg-blue-700 py-2 px-4 text-white"
+      >
+        Get Phase
+      </button>
+      <p id="phaseline" class="text-gray-600"></p>
+
+      <button
+        id="nextPhase"
+        onclick="nextPhaseFunction()"
+
+        class="rounded bg-blue-500 hover:bg-blue-700 py-2 px-4 text-white"
+      >
+        Next Phase
+      </button>
+      
+
+    </div>
+  </div>
+
+  <template id="nft_template">
+    <section>
+      <h1 class="font-bold bg-yellow-500 text-white text-center rounded-t-md"></h1>
+
+      <a href="" target="_blank">
+        <img class="rounded-b-md w-40 h-40" src="" alt="">
+      </a>
+    </section>
+  </template>
+
+  
+
+
+  <script>
+    var link="https://api.etherscan.io/api?module=contract&action=getabi&address=0xC651C22495aDB3C1aCE652A0EeD2A31da597cDE7";
+
+    // var data = ''
+    // $.getJSON(link, data, success);
+    
+    // function success(data) {
+    //   console.log(data['result'])
+    // }
+
+    //getABI();
+
+
+    window.userAddress = null;
+    window.onload = async () => {
+      // Init Web3 connected to ETH network
+      if (window.ethereum) {
+        window.web3 = new Web3(window.ethereum);
+      } else {
+        alert("No ETH brower extension detected.");
+      }
+
+      // Load in Localstore key
+      window.userAddress = window.localStorage.getItem("userAddress");
+      showAddress();
+    };
+
+    // Use this function to turn a 42 character ETH address
+    // into an address like 0x345...12345
+    function truncateAddress(address) {
+      if (!address) {
+        return "";
+      }
+      return `${address.substr(0, 5)}...${address.substr(
+        address.length - 5,
+        address.length
+      )}`;
+    }
+
+    // Display or remove the users know address on the frontend
+    function showAddress() {
+      if (!window.userAddress) {
+        document.getElementById("userAddress").innerText = "";
+        document.getElementById("logoutButton").classList.add("hidden");
+        document.getElementById("getContractInfo").classList.add("hidden");
+        document.getElementById("userInput").classList.add("hidden");
+        document.getElementById("getPhase").classList.add("hidden");
+        document.getElementById("nextPhase").classList.add("hidden");
+        document.getElementById("userInputTitle").classList.add("hidden");
+        
+        
+
+        return false;
+      }
+
+      document.getElementById(
+        "userAddress"
+      ).innerText = `ETH Address: ${(window.userAddress)}`;
+      document.getElementById("logoutButton").classList.remove("hidden");
+      document.getElementById("getContractInfo").classList.remove("hidden");
+      document.getElementById("userInput").classList.remove("hidden");
+      document.getElementById("userInput").placeholder = "Enter token ID here";
+      document.getElementById("getPhase").classList.remove("hidden");
+      document.getElementById("nextPhase").classList.remove("hidden");
+      document.getElementById("userInputTitle").classList.remove("hidden");
+      document.getElementById("userInputTitle").innerText = "Enter Token ID:";
+      document.getElementById("userInput").innerText = "test";
+     
+    }
+    
+    // remove stored user address and reset frontend
+    function logout() {
+      window.userAddress = null;
+      window.localStorage.removeItem("userAddress");
+      document.getElementById("nameline").innerText = "";
+      document.getElementById("balanceline").innerText = "";
+      document.getElementById("nfts").innerText = "";
+      document.getElementById("totalsupplyline").innerText = "";
+      document.getElementById("userInput").value = "";
+      document.getElementById("nameline").innerText = "";
+      document.getElementById("phaseline").innerText = "";
+      showAddress();
+    }
+
+    // Login with Web3 via Metamasks window.ethereum library
+    async function loginWithEth() {
+      if (window.web3) {
+        try {
+          // We use this since ethereum.enable() is deprecated. This method is not
+          // available in Web3JS - so we call it directly from metamasks' library
+          const selectedAccount = await window.ethereum
+            .request({
+              method: "eth_requestAccounts",
+            })
+            .then((accounts) => accounts[0])
+            .catch(() => {
+              throw Error("No account selected!");
+            });
+          window.userAddress = selectedAccount;
+          window.localStorage.setItem("userAddress", selectedAccount);
+          showAddress();
+        } catch (error) {
+          console.error(error);
+        }
+      } else {
+        alert("No ETH brower extension detected.");
+      }
+    }
+
+    // Go to blockchain and get the contract symbol. Keep in mind
+    // YOU MUST BE CONNECT TO RINKEBY NETWORK TO USE THIS FUNCTION
+    // why -> because this specific contract address is on ethereum.
+    // When you click login, just make sure your network is Rinkeby and it will all workout.
+    async function getContractSymbol() {
+      // document.getElementById("getContractInfo").classList.add("hidden");
+      // document.getElementById("getPhase").classList.add("hidden");
+
+      const CONTRACT_ADDRESS = "0xC651C22495aDB3C1aCE652A0EeD2A31da597cDE7";
+
+      var web3 = new Web3(new Web3.providers.HttpProvider());
+      var version = web3.version.api;
+      abiURI = 'https://api-rinkeby.etherscan.io/api?module=contract&action=getabi&address=' + CONTRACT_ADDRESS
+      var abiJson = await fetch(abiURI).then((response) => response.json())
+      abifinal = `${abiJson['result']}`
+      abifinal = JSON.parse(abifinal)
+      
+      //console.log(abitext)
+      console.log(typeof abifinal)
+      window.ABI = abifinal
+
+      const contract = new window.web3.eth.Contract(
+        window.ABI,
+        CONTRACT_ADDRESS
+      );
+      const name = await contract.methods
+        .name()
+        .call({ from: window.userAddress });
+        document.getElementById("nameline").innerText = (`Project name: ${name}`);
+      const balance = await contract.methods
+        .balanceOf(userAddress)
+        .call({ from: window.userAddress });
+        document.getElementById("balanceline").innerText = (`Amount held: ${balance}`);
+      const totalSupply = await contract.methods
+        .totalSupply()
+        .call({ from: window.userAddress });
+        document.getElementById("totalsupplyline").innerText = (`Total Supply: ${totalSupply}`);
+      
+
+      for(let i = 400; i < 2000; i++){
+        const ownerOf = await contract.methods
+          .ownerOf(i)
+          .call({ from: window.userAddress });
+          //document.getElementById("totalsupplyline").innerText = (`Total Supply: ${totalSupply}`);
+        //console.log(i, '', ownerOf)
+        //console.log(i)
+        if(ownerOf.toUpperCase() == userAddress.toUpperCase()){
+          console.log(i, ownerOf)
+        }
+      }
+
+      //alert(`name: ${name}, tokenURI: ${tokenURI} , imageuri: ${imageURI}`);
+      
+      
+    }
+    async function returnText(){
+      let tokenID = document.getElementById("userInput").value;
+      
+      // document.getElementById("getContractInfo").classList.add("hidden");
+      // document.getElementById("getPhase").classList.add("hidden");
+      
+      const CONTRACT_ADDRESS = "0xC651C22495aDB3C1aCE652A0EeD2A31da597cDE7";
+
+      var web3 = new Web3(new Web3.providers.HttpProvider());
+      var version = web3.version.api;
+      abiURI = 'https://api-rinkeby.etherscan.io/api?module=contract&action=getabi&address=' + CONTRACT_ADDRESS
+      var abiJson = await fetch(abiURI).then((response) => response.json())
+      abifinal = `${abiJson['result']}`
+      abifinal = JSON.parse(abifinal)
+      
+      //console.log(abitext)
+      console.log(typeof abifinal)
+      window.ABI = abifinal
+
+      const contract = new window.web3.eth.Contract(
+        window.ABI,
+        CONTRACT_ADDRESS
+      );
+      const phase = await contract.methods
+          .levels(tokenID)
+          .call({ from: window.userAddress });
+          document.getElementById("phaseline").innerText = (`Current Phase: ${phase}`);
+          document.getElementById("userInput").innerText = "";
+      
+    
+}
+
+async function nextPhaseFunction(){
+      let tokenID = document.getElementById("userInput").value;
+      
+      // document.getElementById("getContractInfo").classList.add("hidden");
+      // document.getElementById("getPhase").classList.add("hidden");
+      
+      const CONTRACT_ADDRESS = "0xC651C22495aDB3C1aCE652A0EeD2A31da597cDE7";
+
+      var web3 = new Web3(new Web3.providers.HttpProvider());
+      var version = web3.version.api;
+      abiURI = 'https://api-rinkeby.etherscan.io/api?module=contract&action=getabi&address=' + CONTRACT_ADDRESS
+      var abiJson = await fetch(abiURI).then((response) => response.json())
+      abifinal = `${abiJson['result']}`
+      abifinal = JSON.parse(abifinal)
+      
+      //console.log(abitext)
+      console.log(typeof abifinal)
+      window.ABI = abifinal
+
+      const contract = new window.web3.eth.Contract(window.ABI,CONTRACT_ADDRESS);
+      const response = await contract.methods.setLevel(tokenID).send({ from: window.userAddress });
+      debugger
+      
+      
+      
+      
+      
+          
+    
+}
+
+    
+  </script>
+</body>
